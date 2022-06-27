@@ -41,7 +41,7 @@ COPY $PHP_PATCH $PHP_PTH/php7_support.patch
 # установка csp
 RUN mkdir -p $CSP_DIR_TMP && cd $CSP_DIR_TMP && \
 	# wget $CSP_DISTR && \
-    tar zxvf `ls -1` --strip-components=1 && \
+	tar zxvf `ls -1` --strip-components=1 && \
 	chmod +x install.sh && ./install.sh && \
 	dpkg -i `ls -1 | grep lsb- | grep devel` && \	
 	cd && rm -rf $CSP_DIR_TMP
@@ -49,27 +49,32 @@ RUN mkdir -p $CSP_DIR_TMP && cd $CSP_DIR_TMP && \
 # установка кадеса
 RUN	mkdir -p $CADES_DIR_TMP && cd $CADES_DIR_TMP && \
 	# wget $CADES_DISTR && \
-    tar zxvf `ls -1` --strip-components=1 && \
+	tar zxvf `ls -1` --strip-components=1 && \
 	dpkg -i `ls -1 |grep cades |grep .deb` && \
 	dpkg -i `ls -1 |grep phpcades |grep .deb` && \
 	cd && rm -rf $CADES_DIR_TMP
 
 # установка php
 RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
-    tar zxvf `ls -1` --strip-components=1 && \
-	./configure --prefix $PHP_DIR --enable-fpm && make && make install && \
+	tar zxvf `ls -1` --strip-components=1 && \
+	./configure --prefix $PHP_DIR --enable-fpm --enable-openssl && make && make install && \
 	update-alternatives --install /usr/local/bin/php php $PHP_DIR/bin/php 100 && \
 	cp $PHP_PTH/php7_support.patch /opt/cprocsp/src/phpcades/ && \
-	cd /opt/cprocsp/src/phpcades/ && \
-	patch -p0 < ./php7_support.patch && \
+	cd /opt/cprocsp/src/phpcades/ && patch -p0 < ./php7_support.patch && \
 	sed -i 's!PHPDIR=/php!PHPDIR=${PHP_SRC}!1' Makefile.unix && \
 	sed -i 's!-fPIC -DPIC!-fPIC -DPIC -fpermissive!1' Makefile.unix && \
-    sed -i 's!-lrdrsup -lcplib !-lrdrsup !1' Makefile.unix && \
-	eval `/opt/cprocsp/src/doxygen/CSP/../setenv.sh --64`; make -f Makefile.unix && \
-	cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
+	sed -i 's!-lrdrsup -lcplib !-lrdrsup !1' Makefile.unix && \
+	eval `/opt/cprocsp/src/doxygen/CSP/../setenv.sh --64`; make -f Makefile.unix
+
+# Конфигурация php
+RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
+	sed -i 's!;extension=openssl!extension=openssl!g' $PHP_DIR/lib/php.ini && \
+	sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
+	sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
 	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so'  $PHP_DIR/lib/php.ini && \
-	EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
+	$EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
 	mv $PHP_DIR/etc/php-fpm.conf.default $PHP_DIR/etc/php-fpm.conf && \
+	sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' $PHP_DIR/etc/php-fpm.conf && \
 	mv $PHP_DIR/etc/php-fpm.d/www.conf.default $PHP_DIR/etc/php-fpm.d/www.conf && \	
 	sed -i 's!listen\s*=.*!listen = 9000!1' $PHP_DIR/etc/php-fpm.d/www.conf && \
 	sed -i 's!nobody!www-data!g' $PHP_DIR/etc/php-fpm.d/www.conf && \
@@ -78,14 +83,20 @@ RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 	ln -s $PHP_DIR/sbin/php-fpm /usr/sbin/php-fpm && \	
 	rm -rf /tmp/php
 
-# COPY certificates /var/opt/cprocsp/keys/www-data/
-# RUN chown -R www-data:www-data /var/opt/cprocsp/keys/www-data/
-# USER www-data
-# RUN csptestf -absorb -certs
+RUN sed -i 's!www-data!root!g' $PHP_DIR/etc/php-fpm.conf
+	# sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' /etc/php/7.4/cli/php.ini
 
-# USER root
-# ADD $TEST_CA_DIR /root/test-ca-root.crt
-# RUN certmgr -inst -store mroot -file /root/test-ca-root.crt
+COPY certificates /var/opt/cprocsp/keys/www-data/
+RUN chown -R www-data:www-data /var/opt/cprocsp/keys/www-data/
+USER www-data
+RUN csptestf -absorb -certs
+
+#;error_log = log/php-fpm.log
+#error_log = /opt/php/php-fpm.log
+
+USER root
+ADD $TEST_CA_DIR /root/test-ca-root.crt
+RUN certmgr -inst -store mroot -file /root/test-ca-root.crt
 
 EXPOSE 9000
 
