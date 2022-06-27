@@ -19,12 +19,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        CSP_DISTR: "sources/linux-amd64_deb.tgz"
+        CADES_DISTR: "sources/cades-linux-amd64.tar.gz"
+        PHP_PATCH: "sources/php7_support.patch"
+        PHP_URL: "https://www.php.net/distributions/php-7.4.3.tar.gz"
+        TEST_CA_DIR: "certificates/4BC6DC14D97010C41A26E058AD851F81C842415A.cer"
     tty:  true
-    args:
-        CSP_DISTR: a_value
-        CADES_DISTR: a_value
-        PHP_URL: a_value
-        TEST_CA_DIR: a_value
     user: 1000:1000
     restart: unless-stopped
     volumes:
