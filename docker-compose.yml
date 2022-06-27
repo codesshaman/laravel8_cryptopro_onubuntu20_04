@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./laravel:/var/www/
+      - ./nginx/conf.d:/etc/nginx/conf.d/
+      # - ./nginx/logs:/var/log/nginx/
+    ports:
+      - "80:80"
+    tty:  true
+    restart: unless-stopped
+    container_name: nginx_cpro
+    depends_on:
+      - lar8cpro
+
+  lar8cpro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    tty:  true
+    args:
+        CSP_DISTR: a_value
+        CADES_DISTR: a_value
+        PHP_URL: a_value
+        TEST_CA_DIR: a_value
+    user: 1000:1000
+    restart: unless-stopped
+    volumes:
+      - ./laravel:/var/www
+    container_name: lar8cpro
