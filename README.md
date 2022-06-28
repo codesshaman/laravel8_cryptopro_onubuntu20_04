@@ -1,24 +1,21 @@
-# laravel + docker configuration
+# Контейнер с конфигурацией КриптоПро для laravel 8
 
-Your need docker and docker-compose in your operation system.
+### Используемая ОС: Ubuntu 20.04
 
-Clone: git clone https://github.com/codesshaman/laravel8_cryptopro.git
+Стабильная LTS с актуальным на момент сборки php 7.4
 
-GO TO FOLDER:
-cd laravel8_cryptopro
+### Версия php: 7.4.3
 
-INSTALL LARAVEL:
- 
-chmod +x start.sh
-./start.sh
+Актуальная версия php с настроенным php-fpm, openssl и pdo
 
-Enter laravel port number and enjoy!
+### Поддержка postgresql
 
-STOP:
-docker-compose down
+Установлен драйвер pdo для взаимодействия с postgresql
 
-CONNECT:
-docker exec -it container_id sh
+## Установка (работает на серверах и ПК с Linux):
 
-OPEN:
-http://localhost:your_port/
+git clone https://github.com/codesshaman/laravel8_cryptopro_onubuntu20_04.git
+cd laravel8_cryptopro_onubuntu20_04
+chmod +x start.sh && ./start.sh
+Далее указываем рабочий порт для бэкенда laravel и наслаждаемся установкой.
+На windows можно распаковать laravel из папки и запустить контейнер при помощи docker-compose up -d --build
