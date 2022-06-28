@@ -21,6 +21,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 	&& apt-get install --no-install-recommends -y \
 		lsb-base \
 		wget \
+		nano \
 		ca-certificates \
 		unzip \
 		libxml2-dev \
@@ -29,6 +30,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 		pkg-config \
 		libsqlite3-dev \
 		build-essential \
+		openssl \
 		gcc \
 		g++
 
@@ -57,7 +59,7 @@ RUN	mkdir -p $CADES_DIR_TMP && cd $CADES_DIR_TMP && \
 # установка php
 RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 	tar zxvf `ls -1` --strip-components=1 && \
-	./configure --prefix $PHP_DIR --enable-fpm --enable-openssl && make && make install && \
+	./configure --prefix $PHP_DIR --enable-fpm && make && make install && \
 	update-alternatives --install /usr/local/bin/php php $PHP_DIR/bin/php 100 && \
 	cp $PHP_PTH/php7_support.patch /opt/cprocsp/src/phpcades/ && \
 	cd /opt/cprocsp/src/phpcades/ && patch -p0 < ./php7_support.patch && \
@@ -68,31 +70,29 @@ RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 
 # Конфигурация php
 RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
+	export EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
+	ln -s /opt/cprocsp/src/phpcades/libphpcades.so $EXT_DIR/libphpcades.so && \
+	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so' $PHP_DIR/lib/php.ini && \
 	sed -i 's!;extension=openssl!extension=openssl!g' $PHP_DIR/lib/php.ini && \
 	sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
 	sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
-	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so'  $PHP_DIR/lib/php.ini && \
-	$EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
 	mv $PHP_DIR/etc/php-fpm.conf.default $PHP_DIR/etc/php-fpm.conf && \
 	sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' $PHP_DIR/etc/php-fpm.conf && \
-	mv $PHP_DIR/etc/php-fpm.d/www.conf.default $PHP_DIR/etc/php-fpm.d/www.conf && \	
+	mv $PHP_DIR/etc/php-fpm.d/www.conf.default $PHP_DIR/etc/php-fpm.d/www.conf && \
 	sed -i 's!listen\s*=.*!listen = 9000!1' $PHP_DIR/etc/php-fpm.d/www.conf && \
 	sed -i 's!nobody!www-data!g' $PHP_DIR/etc/php-fpm.d/www.conf && \
-	ln -s /opt/cprocsp/src/phpcades/libphpcades.so $EXT_DIR/ && \
 	chown -R www-data:www-data $PHP_DIR/var/log && \
-	ln -s $PHP_DIR/sbin/php-fpm /usr/sbin/php-fpm && \	
-	rm -rf /tmp/php
+	ln -s $PHP_DIR/sbin/php-fpm /usr/sbin/php-fpm && \
+	rm -rf /tmp/*
 
 RUN sed -i 's!www-data!root!g' $PHP_DIR/etc/php-fpm.conf
-	# sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' /etc/php/7.4/cli/php.ini
 
 COPY certificates /var/opt/cprocsp/keys/www-data/
 RUN chown -R www-data:www-data /var/opt/cprocsp/keys/www-data/
 USER www-data
 RUN csptestf -absorb -certs
 
-#;error_log = log/php-fpm.log
-#error_log = /opt/php/php-fpm.log
+	
 
 USER root
 ADD $TEST_CA_DIR /root/test-ca-root.crt
