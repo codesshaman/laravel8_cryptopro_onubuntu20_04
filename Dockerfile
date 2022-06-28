@@ -66,8 +66,8 @@ RUN	mkdir -p $CADES_DIR_TMP && cd $CADES_DIR_TMP && \
 # установка php
 RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 	tar zxvf `ls -1` --strip-components=1 && \
-	./configure --prefix $PHP_DIR --enable-fpm --with-openssl --with-openssl-dir=/usr/bin && make && make install && \
-	update-alternatives --install /usr/local/bin/php php $PHP_DIR/bin/php 100 && \
+	./configure --prefix $PHP_DIR --enable-fpm --with-openssl --with-openssl-dir=/usr/bin --with-pdo-pgsql && \
+	make && make install && update-alternatives --install /usr/local/bin/php php $PHP_DIR/bin/php 100 && \
 	cp $PHP_PTH/php7_support.patch /opt/cprocsp/src/phpcades/ && \
 	cd /opt/cprocsp/src/phpcades/ && patch -p0 < ./php7_support.patch && \
 	sed -i 's!PHPDIR=/php!PHPDIR=${PHP_SRC}!1' Makefile.unix && \
@@ -82,11 +82,6 @@ RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
 	export EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
 	ln -s /opt/cprocsp/src/phpcades/libphpcades.so $EXT_DIR/libphpcades.so && \
 	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so' $PHP_DIR/lib/php.ini && \
-	sed -i 's!;extension=openssl!extension=openssl!g' $PHP_DIR/lib/php.ini && \
-	# sed -i 's!;extension_dir = "./"!extension_dir = "./""!g' $PHP_DIR/lib/php.ini && \
-	echo "extension_dir = $EXT_DIR" >> $PHP_DIR/lib/php.ini && \
-	# sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
-	# sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
 	mv $PHP_DIR/etc/php-fpm.conf.default $PHP_DIR/etc/php-fpm.conf && \
 	sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' $PHP_DIR/etc/php-fpm.conf && \
 	mv $PHP_DIR/etc/php-fpm.d/www.conf.default $PHP_DIR/etc/php-fpm.d/www.conf && \
@@ -112,7 +107,11 @@ CMD ["php-fpm","-F"]
 
 
 
-
+	# sed -i 's!;extension=openssl!extension=openssl!g' $PHP_DIR/lib/php.ini && \
+	# sed -i 's!;extension_dir = "./"!extension_dir = "./""!g' $PHP_DIR/lib/php.ini && \
+	# echo "extension_dir = $EXT_DIR" >> $PHP_DIR/lib/php.ini && \
+	# sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
+	# sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
 
 
 
