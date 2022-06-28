@@ -34,8 +34,15 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 		gcc \
 		g++
 
-# Копирование исходников:
+# Подключение библиотек docker-php-ext-install
+COPY --from=php:7.4-fpm /usr/local/bin/docker-php-ext-install /usr/local/bin/docker-php-ext-install
+COPY --from=php:7.4-fpm /usr/local/bin/docker-php-source /usr/local/bin/docker-php-source
+COPY --from=php:7.4-fpm /usr/local/bin/docker-php-ext-enable /usr/local/bin/docker-php-ext-enable
+COPY --from=php:7.4-fpm /usr/local/bin/docker-php-ext-configure /usr/local/bin/docker-php-ext-configure
+COPY --from=php:7.4-fpm /usr/local/bin/phpize /usr/local/bin/phpize
+COPY --from=php:7.4-fpm /usr/src/php.tar.xz /usr/src/php.tar.xz
 
+# Копирование исходников:
 COPY $CSP_DISTR $CSP_DIR_TMP/linux-amd64_deb.tgz
 COPY $CADES_DISTR $CADES_DIR_TMP/cades-linux-amd64.tar.gz
 COPY $PHP_PATCH $PHP_PTH/php7_support.patch
@@ -59,7 +66,7 @@ RUN	mkdir -p $CADES_DIR_TMP && cd $CADES_DIR_TMP && \
 # установка php
 RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 	tar zxvf `ls -1` --strip-components=1 && \
-	./configure --prefix $PHP_DIR --enable-fpm && make && make install && \
+	./configure --prefix $PHP_DIR --enable-fpm --with-openssl --with-openssl-dir=/usr/bin && make && make install && \
 	update-alternatives --install /usr/local/bin/php php $PHP_DIR/bin/php 100 && \
 	cp $PHP_PTH/php7_support.patch /opt/cprocsp/src/phpcades/ && \
 	cd /opt/cprocsp/src/phpcades/ && patch -p0 < ./php7_support.patch && \
@@ -68,14 +75,18 @@ RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 	sed -i 's!-lrdrsup -lcplib !-lrdrsup !1' Makefile.unix && \
 	eval `/opt/cprocsp/src/doxygen/CSP/../setenv.sh --64`; make -f Makefile.unix
 
+RUN apt install -y php-pdo-pgsql
+
 # Конфигурация php
 RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
 	export EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
 	ln -s /opt/cprocsp/src/phpcades/libphpcades.so $EXT_DIR/libphpcades.so && \
 	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so' $PHP_DIR/lib/php.ini && \
 	sed -i 's!;extension=openssl!extension=openssl!g' $PHP_DIR/lib/php.ini && \
-	sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
-	sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
+	# sed -i 's!;extension_dir = "./"!extension_dir = "./""!g' $PHP_DIR/lib/php.ini && \
+	echo "extension_dir = $EXT_DIR" >> $PHP_DIR/lib/php.ini && \
+	# sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
+	# sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
 	mv $PHP_DIR/etc/php-fpm.conf.default $PHP_DIR/etc/php-fpm.conf && \
 	sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' $PHP_DIR/etc/php-fpm.conf && \
 	mv $PHP_DIR/etc/php-fpm.d/www.conf.default $PHP_DIR/etc/php-fpm.d/www.conf && \
@@ -85,14 +96,10 @@ RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
 	ln -s $PHP_DIR/sbin/php-fpm /usr/sbin/php-fpm && \
 	rm -rf /tmp/*
 
-RUN sed -i 's!www-data!root!g' $PHP_DIR/etc/php-fpm.conf
-
 COPY certificates /var/opt/cprocsp/keys/www-data/
 RUN chown -R www-data:www-data /var/opt/cprocsp/keys/www-data/
 USER www-data
 RUN csptestf -absorb -certs
-
-	
 
 USER root
 ADD $TEST_CA_DIR /root/test-ca-root.crt
@@ -109,7 +116,11 @@ CMD ["php-fpm","-F"]
 
 
 
-
+# ./usr/bin/openssl
+# ./usr/include/openssl
+# ./usr/include/x86_64-linux-gnu/openssl
+# ./usr/share/doc/openssl
+# ./usr/share/lintian/overrides/openssl
 
 
 
