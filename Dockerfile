@@ -30,17 +30,10 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 		pkg-config \
 		libsqlite3-dev \
 		build-essential \
+		libpq-dev \
 		openssl \
 		gcc \
 		g++
-
-# Подключение библиотек docker-php-ext-install
-COPY --from=php:7.4-fpm /usr/local/bin/docker-php-ext-install /usr/local/bin/docker-php-ext-install
-COPY --from=php:7.4-fpm /usr/local/bin/docker-php-source /usr/local/bin/docker-php-source
-COPY --from=php:7.4-fpm /usr/local/bin/docker-php-ext-enable /usr/local/bin/docker-php-ext-enable
-COPY --from=php:7.4-fpm /usr/local/bin/docker-php-ext-configure /usr/local/bin/docker-php-ext-configure
-COPY --from=php:7.4-fpm /usr/local/bin/phpize /usr/local/bin/phpize
-COPY --from=php:7.4-fpm /usr/src/php.tar.xz /usr/src/php.tar.xz
 
 # Копирование исходников:
 COPY $CSP_DISTR $CSP_DIR_TMP/linux-amd64_deb.tgz
@@ -49,7 +42,6 @@ COPY $PHP_PATCH $PHP_PTH/php7_support.patch
 
 # установка csp
 RUN mkdir -p $CSP_DIR_TMP && cd $CSP_DIR_TMP && \
-	# wget $CSP_DISTR && \
 	tar zxvf `ls -1` --strip-components=1 && \
 	chmod +x install.sh && ./install.sh && \
 	dpkg -i `ls -1 | grep lsb- | grep devel` && \	
@@ -57,7 +49,6 @@ RUN mkdir -p $CSP_DIR_TMP && cd $CSP_DIR_TMP && \
 
 # установка кадеса
 RUN	mkdir -p $CADES_DIR_TMP && cd $CADES_DIR_TMP && \
-	# wget $CADES_DISTR && \
 	tar zxvf `ls -1` --strip-components=1 && \
 	dpkg -i `ls -1 |grep cades |grep .deb` && \
 	dpkg -i `ls -1 |grep phpcades |grep .deb` && \
@@ -91,45 +82,17 @@ RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
 	ln -s $PHP_DIR/sbin/php-fpm /usr/sbin/php-fpm && \
 	rm -rf /tmp/*
 
+# Настройка сертификата
 COPY certificates /var/opt/cprocsp/keys/www-data/
 RUN chown -R www-data:www-data /var/opt/cprocsp/keys/www-data/
 USER www-data
 RUN csptestf -absorb -certs
-
 USER root
 ADD $TEST_CA_DIR /root/test-ca-root.crt
 RUN certmgr -inst -store mroot -file /root/test-ca-root.crt
 
+# Открытие порта
 EXPOSE 9000
 
+# Запуск php-fpm
 CMD ["php-fpm","-F"]
-
-
-
-
-	# sed -i 's!;extension=openssl!extension=openssl!g' $PHP_DIR/lib/php.ini && \
-	# sed -i 's!;extension_dir = "./"!extension_dir = "./""!g' $PHP_DIR/lib/php.ini && \
-	# echo "extension_dir = $EXT_DIR" >> $PHP_DIR/lib/php.ini && \
-	# sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
-	# sed -i 's!;extension=pgsql!extension=pgsql!g' $PHP_DIR/lib/php.ini && \
-
-
-
-# ./usr/bin/openssl
-# ./usr/include/openssl
-# ./usr/include/x86_64-linux-gnu/openssl
-# ./usr/share/doc/openssl
-# ./usr/share/lintian/overrides/openssl
-
-
-
-
-
-
-# USER www-data
-# RUN apt-get install -y php-fpm 																	&& \
-# 	sed -i 's!www-data!root!g' `find /etc/ -name www.conf`										&& \
-# 	sed -i 's!listen\s*=.*!listen = 9000!1' `find /etc/ -name www.conf`							&& \
-# 	mkdir -p /run/php
-# sed -i 's!www-data!root!g' $PHP_DIR/etc/php-fpm.conf										&& \
-# addgroup -g 82 -S www-data && useradd -u 82 -D -S -G www-data www-data						&& \
