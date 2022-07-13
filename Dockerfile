@@ -68,11 +68,11 @@ RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 
 RUN apt install -y php-pdo-pgsql
 
-# Конфигурация php
+# Конфигурация php (ВАЖНО! 2 пробела для подключения libphpcades.so в php.ini)
 RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
 	export EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
 	ln -s /opt/cprocsp/src/phpcades/libphpcades.so $EXT_DIR/libphpcades.so && \
-	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so' $PHP_DIR/lib/php.ini && \
+	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so'  $PHP_DIR/lib/php.ini && \
 	mv $PHP_DIR/etc/php-fpm.conf.default $PHP_DIR/etc/php-fpm.conf && \
 	sed -i 's!;error_log = log/php-fpm.log!error_log = syslog!g' $PHP_DIR/etc/php-fpm.conf && \
 	mv $PHP_DIR/etc/php-fpm.d/www.conf.default $PHP_DIR/etc/php-fpm.d/www.conf && \
