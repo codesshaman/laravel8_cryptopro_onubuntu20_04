@@ -30,6 +30,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
 		pkg-config \
 		libsqlite3-dev \
 		build-essential \
+		php-pdo-pgsql \
 		libpq-dev \
 		openssl \
 		gcc \
@@ -66,12 +67,13 @@ RUN mkdir $PHP_SRC && cd $PHP_SRC && wget $PHP_URL && \
 	sed -i 's!-lrdrsup -lcplib !-lrdrsup !1' Makefile.unix && \
 	eval `/opt/cprocsp/src/doxygen/CSP/../setenv.sh --64`; make -f Makefile.unix
 
-RUN apt install -y php-pdo-pgsql
-
 # Конфигурация php (ВАЖНО! 2 пробела для подключения libphpcades.so в php.ini)
 RUN cp $PHP_SRC/php.ini-production $PHP_DIR/lib/php.ini && \
 	export EXT_DIR=`php -ini |grep extension_dir | grep -v sqlite | awk '{print $3}'` && \
 	ln -s /opt/cprocsp/src/phpcades/libphpcades.so $EXT_DIR/libphpcades.so && \
+	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so' /etc/php/7.4/cli/php.ini && \
+	sed -i 's!;extension=pdo_mysql!extension=pdo_mysql!g' /etc/php/7.4/cli/php.ini && \
+	sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' /etc/php/7.4/cli/php.ini && \
 	sed -i '/; Dynamic Extensions ;/a extension=libphpcades.so'  $PHP_DIR/lib/php.ini && \
 	sed -i 's!;extension=pdo_mysql!extension=pdo_mysql!g' $PHP_DIR/lib/php.ini && \
 	sed -i 's!;extension=pdo_pgsql!extension=pdo_pgsql!g' $PHP_DIR/lib/php.ini && \
